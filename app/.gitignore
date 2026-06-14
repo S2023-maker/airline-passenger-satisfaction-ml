@@ -11,3 +11,5 @@ data/airline_passenger_satisfaction.csv
 
 # Models
 models/*.pkl
+
+models/sprint1_artifacts.pkl
