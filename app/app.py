@@ -55,6 +55,8 @@ def load_model():
     # Load data
     data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'airline_passenger_satisfaction.csv')
     df = pd.read_csv(data_path)
+    # Use 20% sample for faster cloud training
+    df = df.sample(frac=0.2, random_state=42).reset_index(drop=True)
 
     # Clean
     imp = SimpleImputer(strategy='median')
