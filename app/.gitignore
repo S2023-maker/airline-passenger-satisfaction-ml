@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.ipynb_checkpoints/
+
+# Data
+data/airline_passenger_satisfaction.csv
+
+# Models
+models/*.pkl
