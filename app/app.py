@@ -26,7 +26,6 @@ st.set_page_config(
 st.markdown("""
 <style>
     .main { padding: 1rem; }
-    .stMetric { background: #f0f2f6; padding: 10px; border-radius: 10px; }
     .prediction-box-satisfied {
         background: linear-gradient(135deg, #28a745, #20c997);
         color: white; padding: 20px; border-radius: 15px;
@@ -41,7 +40,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# Train & Cache Model (no pickle needed)
+# Train & Cache Model (Fast — Decision Tree)
 # ─────────────────────────────────────────────
 @st.cache_resource
 def load_model():
@@ -50,7 +49,7 @@ def load_model():
     from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
     from sklearn.compose import ColumnTransformer
     from sklearn.pipeline import Pipeline
-    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.tree import DecisionTreeClassifier
     from sklearn.metrics import f1_score, accuracy_score
 
     # Load data
@@ -78,14 +77,14 @@ def load_model():
         'cleanliness', 'food_and_drink', 'in_flight_service',
         'in_flight_wifi_service', 'in_flight_entertainment', 'baggage_handling'
     ]
-    df['total_delay']          = df['departure_delay'] + df['arrival_delay']
-    df['delay_ratio']          = df['arrival_delay'] / (df['departure_delay'] + 1)
-    df['avg_service_rating']   = df[service_cols].mean(axis=1)
-    df['inflight_experience']  = df[['seat_comfort', 'in_flight_entertainment',
-                                      'in_flight_service', 'in_flight_wifi_service']].mean(axis=1)
-    df['ground_experience']    = df[['check_in_service', 'gate_location',
-                                      'baggage_handling', 'ease_of_online_booking']].mean(axis=1)
-    df['is_long_haul']         = (df['flight_distance'] > 1000).astype(int)
+    df['total_delay']         = df['departure_delay'] + df['arrival_delay']
+    df['delay_ratio']         = df['arrival_delay'] / (df['departure_delay'] + 1)
+    df['avg_service_rating']  = df[service_cols].mean(axis=1)
+    df['inflight_experience'] = df[['seat_comfort', 'in_flight_entertainment',
+                                     'in_flight_service', 'in_flight_wifi_service']].mean(axis=1)
+    df['ground_experience']   = df[['check_in_service', 'gate_location',
+                                     'baggage_handling', 'ease_of_online_booking']].mean(axis=1)
+    df['is_long_haul']        = (df['flight_distance'] > 1000).astype(int)
 
     # Encode target
     le_y = LabelEncoder()
@@ -113,22 +112,23 @@ def load_model():
         ('num', StandardScaler(), num_cols)
     ])
 
+    # ✅ Decision Tree — Fast Training
     pipeline = Pipeline(steps=[
         ('preprocessor', preprocessor),
-        ('classifier', RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1))
+        ('classifier', DecisionTreeClassifier(max_depth=15, random_state=42))
     ])
     pipeline.fit(X_train, y_train)
 
     y_pred = pipeline.predict(X_test)
 
     meta = {
-        'cat_cols'      : cat_cols,
-        'num_cols'      : num_cols,
-        'service_cols'  : service_cols,
-        'model_name'    : 'Random Forest',
-        'test_accuracy' : accuracy_score(y_test, y_pred),
-        'test_f1'       : f1_score(y_test, y_pred),
-        'classes'       : list(le_y.classes_)
+        'cat_cols'     : cat_cols,
+        'num_cols'     : num_cols,
+        'service_cols' : service_cols,
+        'model_name'   : 'Decision Tree',
+        'test_accuracy': accuracy_score(y_test, y_pred),
+        'test_f1'      : f1_score(y_test, y_pred),
+        'classes'      : list(le_y.classes_)
     }
 
     return pipeline, le_y, meta
@@ -171,6 +171,14 @@ def build_input_df(inputs, meta):
 
 
 # ─────────────────────────────────────────────
+# Check Data Exists
+# ─────────────────────────────────────────────
+data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'airline_passenger_satisfaction.csv')
+if not os.path.exists(data_path):
+    st.error("⚠️ Dataset not found! Place `airline_passenger_satisfaction.csv` in the `data/` folder.")
+    st.stop()
+
+# ─────────────────────────────────────────────
 # Sidebar
 # ─────────────────────────────────────────────
 st.sidebar.title("✈️ Airline ML Project")
@@ -198,17 +206,9 @@ for s, desc in sprints_info.items():
     )
 
 # ─────────────────────────────────────────────
-# Check Data Exists
+# Load model
 # ─────────────────────────────────────────────
-data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'airline_passenger_satisfaction.csv')
-if not os.path.exists(data_path):
-    st.error("⚠️ Dataset not found! Place `airline_passenger_satisfaction.csv` in the `data/` folder.")
-    st.stop()
-
-# ─────────────────────────────────────────────
-# Load model (trains fresh — no pickle needed)
-# ─────────────────────────────────────────────
-with st.spinner("⏳ Loading model... (first load takes ~30 seconds)"):
+with st.spinner("⏳ Training model... please wait ~15 seconds"):
     pipeline, le_y, meta = load_model()
 
 # ─────────────────────────────────────────────
@@ -220,16 +220,16 @@ if page == "🏠 Home & Overview":
     st.markdown("---")
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("🎯 Project Type",   "Classification")
-    c2.metric("📦 Total Sprints",  "4")
-    c3.metric("🤖 Best Model",     meta['model_name'])
-    c4.metric("✅ Test F1 Score",  f"{meta['test_f1']:.3f}")
+    c1.metric("🎯 Project Type",  "Classification")
+    c2.metric("📦 Total Sprints", "4")
+    c3.metric("🤖 Best Model",    meta['model_name'])
+    c4.metric("✅ Test F1 Score", f"{meta['test_f1']:.3f}")
 
     st.markdown("---")
     st.subheader("📋 Project Structure")
-    sprint_data = {
-        "Sprint"         : ["Sprint 1", "Sprint 2", "Sprint 3", "Sprint 4"],
-        "Focus Area"     : [
+    st.dataframe(pd.DataFrame({
+        "Sprint"          : ["Sprint 1", "Sprint 2", "Sprint 3", "Sprint 4"],
+        "Focus Area"      : [
             "Data Understanding & Preprocessing",
             "Model Building & Evaluation",
             "Optimization & Final Model",
@@ -242,8 +242,7 @@ if page == "🏠 Home & Overview":
             "Streamlit UI, End-to-end pipeline, Documentation"
         ],
         "Status": ["✅ Complete", "✅ Complete", "✅ Complete", "✅ Live"]
-    }
-    st.dataframe(pd.DataFrame(sprint_data), use_container_width=True, hide_index=True)
+    }), use_container_width=True, hide_index=True)
 
     st.markdown("---")
     st.subheader("🎯 Problem Statement")
@@ -270,31 +269,31 @@ elif page == "🔮 Predict Satisfaction":
 
     with col_left:
         st.subheader("👤 Passenger Profile")
-        gender          = st.selectbox("Gender",        ["Male", "Female"])
-        customer_type   = st.selectbox("Customer Type", ["Loyal Customer", "disloyal Customer"])
+        gender          = st.selectbox("Gender",          ["Male", "Female"])
+        customer_type   = st.selectbox("Customer Type",   ["Loyal Customer", "disloyal Customer"])
         age             = st.slider("Age", 7, 85, 35)
-        type_of_travel  = st.selectbox("Type of Travel", ["Business travel", "Personal Travel"])
-        travel_class    = st.selectbox("Class",          ["Business", "Eco", "Eco Plus"])
+        type_of_travel  = st.selectbox("Type of Travel",  ["Business travel", "Personal Travel"])
+        travel_class    = st.selectbox("Class",           ["Business", "Eco", "Eco Plus"])
         flight_distance = st.slider("Flight Distance (km)", 50, 5000, 1000)
         departure_delay = st.slider("Departure Delay (min)", 0, 300, 0)
         arrival_delay   = st.slider("Arrival Delay (min)",   0, 300, 0)
 
     with col_right:
         st.subheader("⭐ Service Ratings (0 = Worst, 5 = Best)")
-        wifi        = st.slider("In-flight WiFi Service",              0, 5, 3)
-        time_conv   = st.slider("Departure/Arrival Time Convenience",  0, 5, 3)
-        online_book = st.slider("Ease of Online Booking",              0, 5, 3)
-        gate_loc    = st.slider("Gate Location",                       0, 5, 3)
-        food        = st.slider("Food and Drink",                      0, 5, 3)
-        online_brd  = st.slider("Online Boarding",                     0, 5, 3)
-        seat        = st.slider("Seat Comfort",                        0, 5, 3)
-        entertain   = st.slider("In-flight Entertainment",             0, 5, 3)
-        onboard_svc = st.slider("On-board Service",                    0, 5, 3)
-        leg_room    = st.slider("Leg Room Service",                    0, 5, 3)
-        baggage     = st.slider("Baggage Handling",                    0, 5, 3)
-        checkin     = st.slider("Check-in Service",                    0, 5, 3)
-        inflight    = st.slider("In-flight Service",                   0, 5, 3)
-        cleanliness = st.slider("Cleanliness",                         0, 5, 3)
+        wifi        = st.slider("In-flight WiFi Service",             0, 5, 3)
+        time_conv   = st.slider("Departure/Arrival Time Convenience", 0, 5, 3)
+        online_book = st.slider("Ease of Online Booking",             0, 5, 3)
+        gate_loc    = st.slider("Gate Location",                      0, 5, 3)
+        food        = st.slider("Food and Drink",                     0, 5, 3)
+        online_brd  = st.slider("Online Boarding",                    0, 5, 3)
+        seat        = st.slider("Seat Comfort",                       0, 5, 3)
+        entertain   = st.slider("In-flight Entertainment",            0, 5, 3)
+        onboard_svc = st.slider("On-board Service",                   0, 5, 3)
+        leg_room    = st.slider("Leg Room Service",                   0, 5, 3)
+        baggage     = st.slider("Baggage Handling",                   0, 5, 3)
+        checkin     = st.slider("Check-in Service",                   0, 5, 3)
+        inflight    = st.slider("In-flight Service",                  0, 5, 3)
+        cleanliness = st.slider("Cleanliness",                        0, 5, 3)
 
     st.markdown("---")
     if st.button("🚀 Predict Satisfaction", type="primary", use_container_width=True):
@@ -423,7 +422,6 @@ elif page == "📊 EDA Dashboard":
         }
         cols_sorted = sorted(avg_ratings, key=avg_ratings.get, reverse=True)
         vals = [avg_ratings[c] for c in cols_sorted]
-
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.barh(cols_sorted, vals,
                 color=plt.cm.viridis(np.linspace(0.3, 0.9, len(cols_sorted))))
@@ -476,10 +474,10 @@ elif page == "🔬 Model Insights":
     st.markdown("---")
     st.subheader("🏆 Sprint 3 — Final Optimized Model")
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("🤖 Model",          meta['model_name'])
-    c2.metric("✅ Test Accuracy",  f"{meta['test_accuracy']:.3f}")
-    c3.metric("🎯 Test F1 Score",  f"{meta['test_f1']:.3f}")
-    c4.metric("📦 Serialization",  "pickle (.pkl)")
+    c1.metric("🤖 Model",         meta['model_name'])
+    c2.metric("✅ Test Accuracy", f"{meta['test_accuracy']:.3f}")
+    c3.metric("🎯 Test F1 Score", f"{meta['test_f1']:.3f}")
+    c4.metric("📦 Serialization", "pickle (.pkl)")
 
     st.markdown("---")
     st.subheader("🔧 Hyperparameter Tuning")
