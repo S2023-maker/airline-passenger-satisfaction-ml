@@ -52,11 +52,9 @@ def load_model():
     from sklearn.tree import DecisionTreeClassifier
     from sklearn.metrics import f1_score, accuracy_score
 
-    # Load data
-    data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'airline_passenger_satisfaction.csv')
+    # Load sample data (fast)
+    data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'airline_sample.csv')
     df = pd.read_csv(data_path)
-    # Use 20% sample for faster cloud training
-    df = df.sample(frac=0.2, random_state=42).reset_index(drop=True)
 
     # Clean
     imp = SimpleImputer(strategy='median')
@@ -114,7 +112,6 @@ def load_model():
         ('num', StandardScaler(), num_cols)
     ])
 
-    # ✅ Decision Tree — Fast Training
     pipeline = Pipeline(steps=[
         ('preprocessor', preprocessor),
         ('classifier', DecisionTreeClassifier(max_depth=15, random_state=42))
@@ -142,7 +139,7 @@ def load_model():
 @st.cache_data
 def load_data():
     from sklearn.impute import SimpleImputer
-    data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'airline_passenger_satisfaction.csv')
+    data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'airline_sample.csv')
     df = pd.read_csv(data_path)
     imp = SimpleImputer(strategy='median')
     df["Arrival Delay"] = imp.fit_transform(df[["Arrival Delay"]])
@@ -175,9 +172,9 @@ def build_input_df(inputs, meta):
 # ─────────────────────────────────────────────
 # Check Data Exists
 # ─────────────────────────────────────────────
-data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'airline_passenger_satisfaction.csv')
+data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'airline_sample.csv')
 if not os.path.exists(data_path):
-    st.error("⚠️ Dataset not found! Place `airline_passenger_satisfaction.csv` in the `data/` folder.")
+    st.error("⚠️ Dataset not found! Place `airline_sample.csv` in the `data/` folder.")
     st.stop()
 
 # ─────────────────────────────────────────────
@@ -210,7 +207,7 @@ for s, desc in sprints_info.items():
 # ─────────────────────────────────────────────
 # Load model
 # ─────────────────────────────────────────────
-with st.spinner("⏳ Training model... please wait ~15 seconds"):
+with st.spinner("⏳ Loading model... please wait"):
     pipeline, le_y, meta = load_model()
 
 # ─────────────────────────────────────────────
@@ -253,7 +250,7 @@ if page == "🏠 Home & Overview":
     based on their flight experience, demographics, and service ratings.
 
     **Dataset Features:** Demographics (age, gender), Flight details (distance, class, delays),
-    Service ratings (14 attributes rated 0–5), and Customer type.
+    Service ratings (14 attributes rated 0-5), and Customer type.
 
     **Business Value:** Helps airlines identify key drivers of passenger satisfaction and
     proactively improve service quality.
@@ -390,7 +387,7 @@ elif page == "📊 EDA Dashboard":
             ax.bar(vc.index, vc.values, color=['#FF6B6B', '#4ECDC4'], edgecolor='white')
             ax.set_title("Satisfaction Distribution")
             for i, v in enumerate(vc.values):
-                ax.text(i, v + 100, str(v), ha='center', fontweight='bold')
+                ax.text(i, v + 10, str(v), ha='center', fontweight='bold')
             st.pyplot(fig)
         with col2:
             fig, ax = plt.subplots(figsize=(5, 4))
@@ -427,7 +424,7 @@ elif page == "📊 EDA Dashboard":
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.barh(cols_sorted, vals,
                 color=plt.cm.viridis(np.linspace(0.3, 0.9, len(cols_sorted))))
-        ax.set_xlabel("Average Rating (0–5)")
+        ax.set_xlabel("Average Rating (0-5)")
         ax.set_title("Average Service Ratings")
         ax.set_xlim(0, 5)
         for i, v in enumerate(vals):
@@ -458,7 +455,7 @@ elif page == "🔬 Model Insights":
     st.subheader("📊 Sprint 2 — Model Comparison")
     st.dataframe(pd.DataFrame({
         "Model"      : ["Logistic Regression", "Decision Tree", "Random Forest",
-                        "Gradient Boosting", "SVM", "Naïve Bayes"],
+                        "Gradient Boosting", "SVM", "Naive Bayes"],
         "Train Acc"  : ["~87%", "~100%", "~99%", "~97%", "~93%", "~80%"],
         "Test Acc"   : ["~87%", "~94%", "~96%", "~93%", "~93%", "~80%"],
         "F1 Score"   : ["~0.87", "~0.94", "~0.96", "~0.93", "~0.93", "~0.80"],
@@ -528,11 +525,11 @@ elif page == "📋 Sprint Summary":
         {
             "sprint": "Sprint 1: Data Understanding & Preprocessing",
             "deliverables": [
-                "✔ Dataset loaded and validated (103,904 rows × 24 cols)",
-                "✔ Missing values imputed (Arrival Delay — median)",
+                "✔ Dataset loaded and validated (103,904 rows x 24 cols)",
+                "✔ Missing values imputed (Arrival Delay - median)",
                 "✔ Duplicates removed",
                 "✔ Outliers capped using IQR (departure/arrival delays)",
-                "✔ EDA — Univariate, Bivariate, Multivariate analysis",
+                "✔ EDA - Univariate, Bivariate, Multivariate analysis",
                 "✔ Feature encoding (OHE for categorical, StandardScaler for numeric)",
                 "✔ 80-20 stratified train-test split",
                 "✔ Preprocessing pipeline saved"
@@ -546,7 +543,7 @@ elif page == "📋 Sprint Summary":
                 "✔ Random Forest Classifier",
                 "✔ Gradient Boosting Classifier",
                 "✔ Support Vector Machine (RBF kernel)",
-                "✔ Naïve Bayes (Gaussian)",
+                "✔ Naive Bayes (Gaussian)",
                 "✔ Confusion matrices for all models",
                 "✔ ROC-AUC curves comparison",
                 "✔ 5-Fold cross-validation",
@@ -597,7 +594,7 @@ elif page == "📋 Sprint Summary":
     st.code("""
 airline_ml/
 ├── data/
-│   └── airline_passenger_satisfaction.csv
+│   └── airline_sample.csv
 ├── notebooks/
 │   ├── sprint1_data_preprocessing.ipynb
 │   ├── sprint2_model_building.ipynb

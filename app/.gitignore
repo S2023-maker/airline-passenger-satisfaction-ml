@@ -6,10 +6,11 @@ __pycache__/
 venv/
 .ipynb_checkpoints/
 
-# Data
+# Large original data file - ignored
 data/airline_passenger_satisfaction.csv
 
-# Models
+# Models - not needed anymore
 models/*.pkl
 
-models/sprint1_artifacts.pkl
+# Keep sample csv - DO NOT ignore it
+# data/airline_sample.csv  ← this line should NOT exist
